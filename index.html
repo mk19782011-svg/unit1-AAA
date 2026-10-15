@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الامتحان الأول - المعلم محمد تيسير الخرشة</title>
+    <!-- تضمين مكتبات Firebase الإصدار 8 لضمان توافقية قاعدة البيانات اللحظية بسلاسة -->
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+    <style>
+        :root {
+            --bg-color: #f0f4f8;
+            --card-bg: #ffffff;
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --text-color: #1f2937;
+            --border-color: #e5e7eb;
+            --success-color: #16a34a;
+            --error-color: #dc2626;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            user-select: none;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: var(--card-bg);
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+            padding: 30px;
+            position: relative;
+        }
+
+        .screen {
+            display: none;
+        }
+
+        .screen.active {
+            display: block;
+        }
+
+        h1 {
+            color: var(--primary-color);
+            margin-bottom: 10px;
+            font-size: 26px;
+            text-align: center;
+        }
+
+        .teacher-name {
+            text-align: center;
+            color: #4b5563;
+            margin-bottom: 25px;
+            font-size: 18px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        input[type="text"], input[type="password"] {
+            width: 100%;
+            padding: 12px;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            font-size: 16px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+
+        input[type="text"]:focus, input[type="password"]:focus {
+            border-color: var(--primary-color);
+        }
+
+        .btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: 600;
+            transition: background-color 0.3s;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            background-color: var(--primary-hover);
+        }
+
+        .btn-secondary {
+            background-color: #64748b;
+        }
+
+        .btn-secondary:hover {
+            background-color: #475569;
+        }
+
+        .quiz-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--border-color);
+            font-weight: 600;
+            color: #6b7280;
+        }
+
+        .question-text {
+            font-size: 18px;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+
+        .options-list {
+            list-style: none;
+            margin-bottom: 25px;
+        }
+
+        .option-item {
+            background: #f8fafc;
+            border: 1px solid var(--border-color);
+            padding: 12px 15px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .option-item:hover {
+            background: #f1f5f9;
+            border-color: var(--primary-color);
+        }
+
+        .option-item input {
+            margin-left: 10px;
+        }
+
+        .underline { text-decoration: underline; }
+        .bold { font-weight: bold; }
+
+        .result-box {
+            text-align: center;
+        }
+
+        .score-display {
+            font-size: 48px;
+            color: var(--primary-color);
+            margin: 20px 0;
+            font-weight: bold;
+        }
+
+        .feedback-container {
+            text-align: right;
+            max-height: 300px;
+            overflow-y: auto;
+            margin-top: 20px;
+            border: 1px solid var(--border-color);
+            padding: 15px;
+            border-radius: 8px;
+        }
+
+        .feedback-item {
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .feedback-item.correct { color: var(--success-color); }
+        .feedback-item.incorrect { color: var(--error-color); }
+
+        .dashboard-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        .dashboard-table th, .dashboard-table td {
+            border: 1px solid var(--border-color);
+            padding: 10px;
+            text-align: center;
+            font-size: 14px;
+        }
+
+        .dashboard-table th {
+            background-color: #f1f5f9;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        
+        <!-- 1. شاشة الغلاف -->
+        <div id="login-screen" class="screen active">
+            <h1>الامتحان الأول</h1>
+            <div class="teacher-name">المعلم: محمد تيسير الخرشة</div>
+            
+            <div class="form-group">
+                <label for="student-name">أدخل اسمك الكامل للبدء:</label>
+                <input type="text" id="student-name" placeholder="الاسم ثلاثي...">
+            </div>
+            
+            <button class="btn" id="start-btn">بدء الامتحان</button>
+            <button class="btn btn-secondary" id="teacher-login-nav-btn">لوحة المعلم</button>
+        </div>
+
+        <!-- شاشة تسجيل دخول المعلم -->
+        <div id="teacher-login-screen" class="screen">
+            <h1>لوحة التحكم - دخول المعلم</h1>
+            <div class="form-group" style="margin-top: 20px;">
+                <label for="teacher-password">أدخل كلمة المرور المشفرة:</label>
+                <input type="password" id="teacher-password" placeholder="كلمة المرور...">
+            </div>
+            <button class="btn" id="verify-teacher-btn">دخول اللوحة</button>
+            <button class="btn btn-secondary" id="back-from-teacher-login-btn">العودة</button>
+        </div>
+
+        <!-- لوحة تحكم المعلم (النتائج) -->
+        <div id="dashboard-screen" class="screen">
+            <h1>نتائج الطلاب المسجلة</h1>
+            <div style="max-height: 350px; overflow-y: auto;">
+                <table class="dashboard-table">
+                    <thead>
+                        <tr>
+                            <th>اسم الطالب</th>
+                            <th>الدرجة (من 100)</th>
+                            <th>وقت التسليم</th>
+                        </tr>
+                    </thead>
+                    <tbody id="results-table-body">
+                        <!-- تُعبأ ديناميكياً -->
+                    </tbody>
+                </table>
+            </div>
+            <button class="btn btn-secondary" id="back-from-dashboard-btn" style="margin-top: 20px;">العودة للرئيسية</button>
+        </div>
+
+        <!-- 2. شاشة الأسئلة -->
+        <div id="quiz-screen" class="screen">
+            <div class="quiz-header">
+                <span id="question-counter">السؤال 1 من 30</span>
+                <span id="timer-warning" style="color: red; display: none;">تحذير: تم رصد مغادرة الصفحة!</span>
+            </div>
+
+            <div id="question-container" class="question-text"></div>
+            
+            <ul id="options-container" class="options-list">
+                <!-- الخيارات -->
+            </ul>
+
+            <button class="btn" id="next-question-btn">السؤال التالي</button>
+        </div>
+
+        <!-- 3. شاشة النتائج النهائية للطالب -->
+        <div id="result-screen" class="screen result-box">
+            <h1>نتيجة الامتحان</h1>
+            <div class="score-display" id="final-score-val">0 / 100</div>
+            <p id="result-message"></p>
+            
+            <div class="feedback-container" id="feedback-list">
+                <!-- التغذية الراجعة -->
+            </div>
+
+            <button class="btn" id="restart-btn" style="margin-top: 20px;">إعادة المحاولة / الخروج</button>
+        </div>
+
+    </div>
+
+    <script>
+        // إعدادات Firebase الخاصة بك مع إضافة رابط قاعدة البيانات Realtime Database
+        const firebaseConfig = {
+            apiKey: "AIzaSyDd1LlQU7xv4vrcjtYHjGE0H2ozIzXQ6bI",
+            authDomain: "mkmk-9bf4c.firebaseapp.com",
+            databaseURL: "https://mkmk-9bf4c-default-rtdb.firebaseio.com", // استبدله بالرابط الخاص بقاعدة بياناتك إذا كان مختلفاً
+            projectId: "mkmk-9bf4c",
+            storageBucket: "mkmk-9bf4c.firebasestorage.app",
+            messagingSenderId: "92826753866",
+            appId: "1:92826753866:web:3e61bbcf97a916ba3cbfb3",
+            measurementId: "G-0S0P7Q37VX"
+        };
+        
+        let db = null;
+        try {
+            if (!firebase.apps.length) {
+                firebase.initializeApp(firebaseConfig);
+            }
+            db = firebase.database();
+        } catch (e) {
+            console.warn("Firebase initialization warning:", e);
+        }
+
+        // منع القائمة اليمنى ونسخ النصوص
+        document.addEventListener('contextmenu', event => event.preventDefault());
+        document.addEventListener('copy', event => event.preventDefault());
+
+        let currentQuizActive = false;
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden && currentQuizActive) {
+                const warningEl = document.getElementById('timer-warning');
+                if (warningEl) warningEl.style.display = 'inline';
+            }
+        });
+
+        // قاعدة بيانات الأسئلة
+        const rawQuestions = [
+            {
+                q: "When someone asks you to <span class='underline'>pass on</span> a message to a friend, it means you need to inform them about something.",
+                options: ["pass on", "make", "establish", "manage"],
+                answer: 0
+            },
+            {
+                q: "It’s essential to __________ contact with clients to ensure they feel valued and informed.",
+                options: ["carry", "deliver", "establish", "pass on"],
+                answer: 2
+            },
+            {
+                q: "Can you please <span class='underline'>spell out</span> the instructions for me? I didn’t understand them.",
+                options: ["bring about", "pick up", "spell out", "come across"],
+                answer: 2
+            },
+            {
+                q: "I always try to strike up a <span class='bold'>conversation</span> when I meet someone new.",
+                options: ["bond", "conversation", "compliment", "laugh"],
+                answer: 1
+            },
+            {
+                q: "I don’t usually like someone immediately but I really <span class='bold'>took to</span> him.",
+                options: ["strike up", "pick up", "real bond", "took to"],
+                answer: 3
+            },
+            {
+                q: "Then the boss asked me to say who I thought was to blame. It was so embarrassing! This sentence means that……………………..",
+                options: ["the boss insisted on having the last word.", "the boss fired questions at me.", "the boss put me on the spot.", "the boss didn’t get a word in edgeways."],
+                answer: 2
+            },
+            {
+                q: "She talked so much that I didn't manage to say anything at all during lunch. This sentence means that…………",
+                options: ["I jumped down his throat.", "I refused to let anything drop.", "I didn’t get a word in edgeways.", "I put him on the spot."],
+                answer: 2
+            },
+            {
+                q: "Kareem was thrilled when he found out he'd got a place at university. - The adjective that replaces the underlined word is……………………..",
+                options: ["terrified", "ecstatic", "tense", "devastated"],
+                answer: 1
+            },
+            {
+                q: "Randa’s mother was absolutely <span class='bold'>livid</span> when she found out that her daughter had cheated in the exam again.",
+                options: ["ecstatic", "livid", "astonished", "thrilled"],
+                answer: 1
+            },
+            {
+                q: "I couldn’t process so much information. The underlined verb (phrase) can be replaced with……………………………………..",
+                options: ["take in", "figure out", "come across", "spell out"],
+                answer: 0
+            },
+            {
+                q: "The sentence “He is driving me up the wall!” illustrates: _______",
+                options: ["annoyance", "sadness", "happiness", "relief"],
+                answer: 0
+            },
+            {
+                q: "The expression that is not associated with sadness is:",
+                options: ["I’m walking on air!", "I'm feeling a bit blue.", "I'm feeling a bit down in the dumps", "I’m heartbroken."],
+                answer: 0
+            },
+            {
+                q: "Don't talk to me! I <span class='underline'>am trying</span> to concentrate at the moment.",
+                options: ["had tried", "was trying", "am trying", "tried"],
+                answer: 2
+            },
+            {
+                q: "I usually take breaks from my laptop screen <span class='underline'>from time to time</span>.",
+                options: ["already", "in recent years", "right now", "from time to time"],
+                answer: 3
+            },
+            {
+                q: "I forgot my password and blocked my e-mail account <span class='underline'>the day before yesterday</span>.",
+                options: ["already", "in recent weeks", "the day before yesterday", "since last week"],
+                answer: 2
+            },
+            {
+                q: "Once in a while, Saleem <span class='underline'>writes</span> a new novel.",
+                options: ["write", "writes", "were writing", "writing"],
+                answer: 1
+            },
+            {
+                q: "Landline telephones <span class='underline'>are becoming</span> less and less these days.",
+                options: ["became", "had become", "are becoming", "was becoming"],
+                answer: 2
+            },
+            {
+                q: "Let's have our breakfast at the garden, <span class='underline'>shall we</span>?",
+                options: ["Haven't we", "shall we", "don’t we", "won't we"],
+                answer: 1
+            },
+            {
+                q: "Actually, nobody has already taken the box, <span class='underline'>have they</span>?",
+                options: ["have they", "hasn't he", "haven't they", "don’t they"],
+                answer: 0
+            },
+            {
+                q: "He couldn’t fix the table, <span class='underline'>could he</span>?",
+                options: ["Can't he", "couldn’t he", "could he", "doesn’t he"],
+                answer: 2
+            },
+            {
+                q: "This is an amazing house, <span class='underline'>isn’t it</span>?",
+                options: ["is it", "isn’t it", "isn’t this", "is this"],
+                answer: 1
+            },
+            {
+                q: "A: I am having a great time. B: <span class='underline'>Aren’t you</span>?",
+                options: ["Are I", "Aren’t I", "Are you", "Aren’t you"],
+                answer: 3
+            },
+            {
+                q: "A: He went to Aqaba last week. B: <span class='underline'>Didn’t he</span>?",
+                options: ["Did he", "Didn’t he", "Was he", "Wasn’t he"],
+                answer: 1
+            },
+            {
+                q: "I am still at home, <span class='underline'>aren’t I</span>?",
+                options: ["I am", "I am not", "are I", "aren’t I"],
+                answer: 3
+            },
+            {
+                q: "A: Fatima and Sally have arrived. B: <span class='underline'>Have they</span>?",
+                options: ["Have they", "Do they", "Haven’t they", "Don’t they"],
+                answer: 0
+            },
+            {
+                q: "The phrasal verb <span class='underline'>wipe out</span> means “to destroy something completely”",
+                options: ["point out", "spell out", "wipe out", "make out"],
+                answer: 2
+            },
+            {
+                q: "Sharing a house creates a strong <span class='bold'>bond</span> between young people at university.",
+                options: ["impression", "compliment", "bond", "laugh"],
+                answer: 2
+            },
+            {
+                q: "You have to learn <span class='bold'>about</span> different topics in your life.",
+                options: ["on", "about", "to", "off"],
+                answer: 1
+            },
+            {
+                q: "The phrase which expresses “ relief ” is <span class='underline'>that is a weight off my mind</span>",
+                options: ["that is a weight off my mind", "I am feeling a bit blue", "I am worried sick about", "I am walking on air"],
+                answer: 0
+            },
+            {
+                q: "If someone pays you a <span class='bold'>compliment</span>, smile and say 'thank you'.",
+                options: ["bond", "compliment", "conversation", "laugh"],
+                answer: 1
+            }
+        ];
+
+        let studentName = "";
+        let currentQuestionIndex = 0;
+        let shuffledQuestions = [];
+        let userAnswers = [];
+
+        function switchScreen(screenId) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(screenId).classList.add('active');
+        }
+
+        document.getElementById('start-btn').addEventListener('click', () => {
+            const nameInput = document.getElementById('student-name').value.trim();
+            if (!nameInput) {
+                alert("الرجاء إدخال الاسم الكامل قبل المتابعة!");
+                return;
+            }
+            studentName = nameInput;
+            currentQuizActive = true;
+
+            shuffledQuestions = JSON.parse(JSON.stringify(rawQuestions)).sort(() => Math.random() - 0.5);
+            shuffledQuestions.forEach(q => {
+                const correctText = q.options[q.answer];
+                q.options.sort(() => Math.random() - 0.5);
+                q.answer = q.options.indexOf(correctText);
+            });
+
+            userAnswers = new Array(shuffledQuestions.length).fill(null);
+            currentQuestionIndex = 0;
+
+            switchScreen('quiz-screen');
+            loadQuestion();
+        });
+
+        function loadQuestion() {
+            const q = shuffledQuestions[currentQuestionIndex];
+            document.getElementById('question-counter').innerText = `السؤال ${currentQuestionIndex + 1} من ${shuffledQuestions.length}`;
+            document.getElementById('question-container').innerHTML = q.q;
+
+            const optionsUl = document.getElementById('options-container');
+            optionsUl.innerHTML = '';
+
+            q.options.forEach((opt, idx) => {
+                const li = document.createElement('li');
+                li.className = 'option-item';
+                li.innerHTML = `<label><input type="radio" name="opt" value="${idx}" ${userAnswers[currentQuestionIndex] === idx ? 'checked' : ''}> ${opt}</label>`;
+                li.addEventListener('click', () => {
+                    const radio = li.querySelector('input');
+                    radio.checked = true;
+                    userAnswers[currentQuestionIndex] = idx;
+                });
+                optionsUl.appendChild(li);
+            });
+        }
+
+        document.getElementById('next-question-btn').addEventListener('click', () => {
+            if (userAnswers[currentQuestionIndex] === null) {
+                alert("الرجاء اختيار إجابة قبل الانتقال للسؤال التالي!");
+                return;
+            }
+
+            currentQuestionIndex++;
+            if (currentQuestionIndex < shuffledQuestions.length) {
+                loadQuestion();
+            } else {
+                finishQuiz();
+            }
+        });
+
+        function finishQuiz() {
+            currentQuizActive = false;
+            switchScreen('result-screen');
+
+            let score = 0;
+            let feedbackHTML = '';
+
+            shuffledQuestions.forEach((q, idx) => {
+                const userAns = userAnswers[idx];
+                const isCorrect = userAns === q.answer;
+                if (isCorrect) score += (100 / shuffledQuestions.length);
+
+                feedbackHTML += `
+                    <div class="feedback-item ${isCorrect ? 'correct' : 'incorrect'}">
+                        <strong>السؤال ${idx + 1}:</strong> ${q.q}<br>
+                        إجابتك: ${userAns !== null ? q.options[userAns] : 'لم تقم بالإجابة'}<br>
+                        ${!isCorrect ? `الإجابة الصحيحة: <strong>${q.options[q.answer]}</strong>` : 'إجابة صحيحة!'}
+                    </div>
+                `;
+            });
+
+            const finalScoreRounded = Math.round(score);
+            document.getElementById('final-score-val').innerText = `${finalScoreRounded} / 100`;
+            document.getElementById('result-message').innerText = `أهلاً بك يا ${studentName}، شكراً لإتمامك الامتحان.`;
+            document.getElementById('feedback-list').innerHTML = feedbackHTML;
+
+            // حفظ الدرجة في Firebase Realtime Database
+            if (db) {
+                try {
+                    db.ref('exam_results').push({
+                        studentName: studentName,
+                        score: finalScoreRounded,
+                        timestamp: new Date().toLocaleString()
+                    });
+                } catch (e) {
+                    console.error("Firebase save error:", e);
+                }
+            }
+        }
+
+        document.getElementById('teacher-login-nav-btn').addEventListener('click', () => {
+            switchScreen('teacher-login-screen');
+        });
+
+        document.getElementById('back-from-teacher-login-btn').addEventListener('click', () => {
+            switchScreen('login-screen');
+        });
+
+        document.getElementById('verify-teacher-btn').addEventListener('click', () => {
+            const pass = document.getElementById('teacher-password').value;
+            if (pass === "MK1978mk") {
+                switchScreen('dashboard-screen');
+                loadTeacherDashboard();
+            } else {
+                alert("كلمة المرور غير صحيحة!");
+            }
+        });
+
+        document.getElementById('back-from-dashboard-btn').addEventListener('click', () => {
+            switchScreen('login-screen');
+        });
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            location.reload();
+        });
+
+        function loadTeacherDashboard() {
+            const tbody = document.getElementById('results-table-body');
+            tbody.innerHTML = '<tr><td colspan="3">جاري جلب البيانات...</td></tr>';
+
+            if (!db) {
+                tbody.innerHTML = '<tr><td colspan="3">تعذر الاتصال بقاعدة البيانات.</td></tr>';
+                return;
+            }
+
+            db.ref('exam_results').once('value').then(snapshot => {
+                tbody.innerHTML = '';
+                const data = snapshot.val();
+                if (!data) {
+                    tbody.innerHTML = '<tr><td colspan="3">لا توجد نتائج مسجلة حتى الآن.</td></tr>';
+                    return;
+                }
+
+                Object.values(data).forEach(item => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${item.studentName || 'غير معروف'}</td>
+                        <td>${item.score || 0}</td>
+                        <td>${item.timestamp || ''}</td>
+                    `;
+                    tbody.appendChild(tr);
+                });
+            }).catch(err => {
+                tbody.innerHTML = '<tr><td colspan="3">حدث خطأ أثناء جلب النتائج.</td></tr>';
+            });
+        }
+    </script>
+</body>
+</html>
